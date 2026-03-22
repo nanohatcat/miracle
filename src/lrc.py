@@ -7,6 +7,7 @@ import os
 BASE = os.path.expanduser("~/.cache/miracle/lrc")
 os.makedirs(BASE, exist_ok=True)
 
+
 def get_lrc(artist, title, enabled):
     if not enabled:
         return []
@@ -32,18 +33,39 @@ def get_lrc(artist, title, enabled):
 
     return parse(path)
 
+
 def parse(path):
-    out = []
+    events = []
+
+    time_pattern = re.compile(r"\[(\d+):(\d+\.\d+)\]")
 
     with open(path, "r", errors="ignore") as f:
         for line in f:
-            matches = re.findall(r"\[(\d+):(\d+\.\d+)\](.*)", line)
+            times = time_pattern.findall(line)
+            if not times:
+                continue
 
-            for m, s, txt in matches:
+            # remove timestamps → keep pure lyric text
+            text = time_pattern.sub("", line).strip()
+
+            # ignore empty lyric lines
+            if not text:
+                continue
+
+            # expand multi-timestamp lines
+            for m, s in times:
                 t = int(m) * 60 + float(s)
-                txt = txt.strip()
+                events.append((t, text))
 
-                if txt:
-                    out.append((t, txt))
+    # sort + deduplicate exact duplicates
+    events.sort(key=lambda x: x[0])
 
-    return sorted(out, key=lambda x: x[0])
+    deduped = []
+    last = None
+
+    for e in events:
+        if e != last:
+            deduped.append(e)
+            last = e
+
+    return deduped
