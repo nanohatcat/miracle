@@ -1,0 +1,56 @@
+name: build and release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: install deps
+        run: |
+          sudo apt update
+          sudo apt install -y python3-venv
+
+      - name: build
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: rename binary
+        run: |
+          mv dist/main miracle-linux
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miracle-linux
+          path: miracle-linux
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: miracle-linux
+
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: miracle-linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
