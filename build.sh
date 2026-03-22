@@ -10,4 +10,4 @@ export TERM=xterm-256color
 
 pyinstaller --onefile main.py
 
-echo "done → dist/main"
+echo "built → dist/main"

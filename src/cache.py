@@ -4,17 +4,17 @@ import hashlib
 BASE = os.path.expanduser("~/.cache/miracle")
 os.makedirs(BASE, exist_ok=True)
 
-def key(artist, title):
-    return hashlib.md5(f"{artist}-{title}".encode()).hexdigest()
+def _path(key):
+    return os.path.join(BASE, key)
 
-def get(artist, title):
-    path = os.path.join(BASE, key(artist, title))
-    if os.path.exists(path):
-        with open(path) as f:
-            return f.read()
+def make_key(a, t):
+    return hashlib.md5(f"{a}-{t}".encode()).hexdigest()
+
+def get(a, t):
+    p = _path(make_key(a, t))
+    if os.path.exists(p):
+        return open(p).read()
     return None
 
-def set_cache(artist, title, data):
-    path = os.path.join(BASE, key(artist, title))
-    with open(path, "w") as f:
-        f.write(data)
+def set_cache(a, t, data):
+    open(_path(make_key(a, t)), "w").write(data)

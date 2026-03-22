@@ -5,7 +5,8 @@ DEFAULT = {
     "scroll_speed": "0.15",
     "cache": "true",
     "lrc": "true",
-    "colors": "true"
+    "colors": "true",
+    "ipc": "false"
 }
 
 def load_config():

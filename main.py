@@ -7,9 +7,10 @@ import json
 
 from src.player import get_track
 from src.lyrics import fetch_lyrics
-from src.lrc import fetch_lrc, parse_lrc
+from src.lrc import get_lrc
 from src.config import load_config
 from src.ui import draw, init
+from src.ipc import send_state
 
 
 def run(stdscr, args, cfg):
@@ -20,7 +21,6 @@ def run(stdscr, args, cfg):
     last = ""
     lines = []
     timestamps = []
-
     start = time.time()
 
     while True:
@@ -36,12 +36,7 @@ def run(stdscr, args, cfg):
                 raw = fetch_lyrics(artist, title, cfg.getboolean("cache"))
                 lines = raw.splitlines()
 
-                if cfg.getboolean("lrc"):
-                    path = fetch_lrc(artist, title)
-                    if path:
-                        timestamps = parse_lrc(path)
-                    else:
-                        timestamps = []
+                timestamps = get_lrc(artist, title, cfg.getboolean("lrc"))
 
                 start = time.time()
                 last = key
@@ -49,20 +44,27 @@ def run(stdscr, args, cfg):
         now = time.time() - start
 
         current = -1
+        display_lines = lines
+
         if timestamps:
-            for i, (t, _) in enumerate(timestamps):
+            for i, (t, txt) in enumerate(timestamps):
                 if now >= t:
                     current = i
-            lines = [t[1] for t in timestamps]
+            display_lines = [t[1] for t in timestamps]
+
+        state = {
+            "artist": artist,
+            "title": title,
+            "line": current
+        }
 
         if args.json:
-            print(json.dumps({
-                "artist": artist,
-                "title": title,
-                "line": current
-            }))
+            print(json.dumps(state))
         else:
-            draw(stdscr, artist, title, lines, current, cfg["scroll_speed"])
+            draw(stdscr, artist, title, display_lines, current, cfg)
+
+        if cfg.getboolean("ipc"):
+            send_state(state)
 
         time.sleep(0.05)
 
@@ -73,5 +75,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfg = load_config()
-
     curses.wrapper(run, args, cfg)

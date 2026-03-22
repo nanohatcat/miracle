@@ -1,22 +1,20 @@
 import urllib.request
 import urllib.parse
 import json
-import re
 from .cache import get, set_cache
+from .fuzzy import normalize
 
-def clean(s):
-    s = re.sub(r"\s*\(.*?\)", "", s)
-    s = re.sub(r"\s*\[.*?\]", "", s)
-    return s.strip()
 
 def fetch_lyrics(artist, title, use_cache=True):
-    c = get(artist, title)
-    if c:
-        return c
+    if use_cache:
+        c = get(artist, title)
+        if c:
+            return c
 
     try:
         a = urllib.parse.quote(artist)
-        t = urllib.parse.quote(clean(title))
+        t = urllib.parse.quote(normalize(title))
+
         url = f"https://api.lyrics.ovh/v1/{a}/{t}"
 
         with urllib.request.urlopen(url, timeout=5) as r:
