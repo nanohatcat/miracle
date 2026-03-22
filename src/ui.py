@@ -1,6 +1,5 @@
 import curses
 
-offset = 0.0
 colors = False
 
 def init():
@@ -8,36 +7,64 @@ def init():
     if curses.has_colors():
         curses.start_color()
         curses.use_default_colors()
-        try:
-            curses.init_pair(1, curses.COLOR_CYAN, -1)
-            curses.init_pair(2, curses.COLOR_YELLOW, -1)
-            curses.init_pair(3, curses.COLOR_WHITE, -1)
-            colors = True
-        except:
-            pass
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        curses.init_pair(2, curses.COLOR_YELLOW, -1)
+        curses.init_pair(3, curses.COLOR_WHITE, -1)
+        colors = True
 
 
-def draw(stdscr, artist, title, lines, current, cfg):
-    global offset
+def progress_bar(w, pos, duration):
+    if duration <= 0:
+        return ""
 
+    ratio = max(0.0, min(1.0, pos / duration))
+    fill = int(ratio * (w - 2))
+
+    return "[" + ("#" * fill).ljust(w - 2) + "]"
+
+
+def draw(stdscr, artist, title, lines, current, cfg, pos, duration):
     stdscr.erase()
     h, w = stdscr.getmaxyx()
 
     header = f"{artist or ''} - {title or ''}"
-    stdscr.addnstr(0, max(0, (w//2 - len(header)//2)), header, w-1,
-                   curses.A_BOLD | (curses.color_pair(1) if colors else 0))
+    stdscr.addnstr(
+        0,
+        max(0, (w // 2 - len(header) // 2)),
+        header,
+        w - 1,
+        curses.A_BOLD | (curses.color_pair(1) if colors else 0),
+    )
 
-    target = max(0, current - h//2)
-    offset += (target - offset) * float(cfg["scroll_speed"])
-    off = int(offset)
+    bar = progress_bar(w, pos, duration)
+    stdscr.addnstr(1, 0, bar, w - 1)
 
-    for i, line in enumerate(lines[off:off+h-2]):
-        idx = i + off
-        attr = curses.color_pair(3) if colors else curses.A_NORMAL
+    if not lines:
+        stdscr.refresh()
+        return
 
-        if idx == current:
-            attr = (curses.color_pair(2) if colors else curses.A_REVERSE) | curses.A_BOLD
+    current = max(0, current)
 
-        stdscr.addnstr(i+2, 0, line, w-1, attr)
+    window_height = h - 3
+    half = window_height // 2
+
+    start = max(0, current - half)
+    view = lines[start:start + window_height]
+
+    for i, line in enumerate(view):
+        idx = start + i
+        y = i + 2
+
+        x = max(0, (w // 2 - len(line) // 2))
+
+        if colors:
+            if idx == current:
+                attr = curses.color_pair(2) | curses.A_BOLD
+            else:
+                attr = curses.color_pair(3)
+        else:
+            attr = curses.A_REVERSE if idx == current else curses.A_NORMAL
+
+        stdscr.addnstr(y, x, line, w - 1, attr)
 
     stdscr.refresh()

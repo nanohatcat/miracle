@@ -21,13 +21,12 @@ def run(stdscr, args, cfg):
     last = ""
     lines = []
     timestamps = []
-    start = time.time()
 
     while True:
         if stdscr.getch() == ord("q"):
             break
 
-        artist, title = get_track()
+        artist, title, pos, duration = get_track()
 
         if artist and title:
             key = f"{artist}-{title}"
@@ -37,36 +36,31 @@ def run(stdscr, args, cfg):
                 lines = raw.splitlines()
 
                 timestamps = get_lrc(artist, title, cfg.getboolean("lrc"))
-
-                start = time.time()
                 last = key
 
-        now = time.time() - start
-
-        current = -1
-        display_lines = lines
+        current = 0
 
         if timestamps:
-            for i, (t, txt) in enumerate(timestamps):
-                if now >= t:
+            for i, (t, _) in enumerate(timestamps):
+                if pos >= t:
                     current = i
-            display_lines = [t[1] for t in timestamps]
+                else:
+                    break
 
-        state = {
-            "artist": artist,
-            "title": title,
-            "line": current
-        }
-
-        if args.json:
-            print(json.dumps(state))
+            display_lines = [txt for _, txt in timestamps]
         else:
-            draw(stdscr, artist, title, display_lines, current, cfg)
+            display_lines = lines
+
+        draw(stdscr, artist, title, display_lines, current, cfg, pos, duration)
 
         if cfg.getboolean("ipc"):
-            send_state(state)
+            send_state({
+                "artist": artist,
+                "title": title,
+                "line": current
+            })
 
-        time.sleep(0.05)
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
