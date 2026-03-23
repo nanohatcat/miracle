@@ -3,7 +3,6 @@
 import curses
 import time
 import argparse
-import json
 
 from src.player import get_track
 from src.lyrics import fetch_lyrics
@@ -18,9 +17,12 @@ def run(stdscr, args, cfg):
     stdscr.nodelay(True)
     init()
 
-    last = ""
+    last_key = None
+    last_pos = 0
+
     lines = []
     timestamps = []
+    has_lrc = False
 
     while True:
         if stdscr.getch() == ord("q"):
@@ -28,19 +30,26 @@ def run(stdscr, args, cfg):
 
         artist, title, pos, duration = get_track()
 
-        if artist and title:
-            key = f"{artist}-{title}"
+        key = f"{artist}-{title}-{int(duration)}"
 
-            if key != last:
-                raw = fetch_lyrics(artist, title, cfg.getboolean("cache"))
-                lines = raw.splitlines()
+        track_changed = (
+            key != last_key or
+            (pos < last_pos - 1)
+        )
 
-                timestamps = get_lrc(artist, title, cfg.getboolean("lrc"))
-                last = key
+        if artist and title and track_changed:
+            raw = fetch_lyrics(artist, title, cfg.getboolean("cache"))
+            lines = raw.splitlines()
 
-        current = 0
+            timestamps = get_lrc(artist, title, cfg.getboolean("lrc"))
+            has_lrc = bool(timestamps)
 
-        if timestamps:
+            last_key = key
+
+        last_pos = pos
+
+        if has_lrc:
+            current = 0
             for i, (t, _) in enumerate(timestamps):
                 if pos >= t:
                     current = i
@@ -49,9 +58,20 @@ def run(stdscr, args, cfg):
 
             display_lines = [txt for _, txt in timestamps]
         else:
-            display_lines = lines
+            current = -1  # disables highlight
+            display_lines = lines if lines else ["no lyrics found"]
 
-        draw(stdscr, artist, title, display_lines, current, cfg, pos, duration)
+        draw(
+            stdscr,
+            artist,
+            title,
+            display_lines,
+            current,
+            cfg,
+            pos,
+            duration,
+            has_lrc
+        )
 
         if cfg.getboolean("ipc"):
             send_state({

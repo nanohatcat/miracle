@@ -2,6 +2,7 @@ import curses
 
 colors = False
 
+
 def init():
     global colors
     if curses.has_colors():
@@ -10,6 +11,7 @@ def init():
         curses.init_pair(1, curses.COLOR_CYAN, -1)
         curses.init_pair(2, curses.COLOR_YELLOW, -1)
         curses.init_pair(3, curses.COLOR_WHITE, -1)
+        curses.init_pair(4, curses.COLOR_RED, -1)
         colors = True
 
 
@@ -23,7 +25,7 @@ def progress_bar(w, pos, duration):
     return "[" + ("#" * fill).ljust(w - 2) + "]"
 
 
-def draw(stdscr, artist, title, lines, current, cfg, pos, duration):
+def draw(stdscr, artist, title, lines, current, cfg, pos, duration, has_lrc):
     stdscr.erase()
     h, w = stdscr.getmaxyx()
 
@@ -43,28 +45,43 @@ def draw(stdscr, artist, title, lines, current, cfg, pos, duration):
         stdscr.refresh()
         return
 
-    current = max(0, current)
-
     window_height = h - 3
-    half = window_height // 2
 
-    start = max(0, current - half)
+    # when no lrc: no highlight, just plain lyrics
+    if not has_lrc:
+        start = 0
+    else:
+        half = window_height // 2
+        start = max(0, current - half)
+
     view = lines[start:start + window_height]
 
     for i, line in enumerate(view):
         idx = start + i
         y = i + 2
-
         x = max(0, (w // 2 - len(line) // 2))
 
-        if colors:
-            if idx == current:
-                attr = curses.color_pair(2) | curses.A_BOLD
+        if has_lrc:
+            if colors:
+                if idx == current:
+                    attr = curses.color_pair(2) | curses.A_BOLD
+                else:
+                    attr = curses.color_pair(3)
             else:
-                attr = curses.color_pair(3)
+                attr = curses.A_REVERSE if idx == current else curses.A_NORMAL
         else:
-            attr = curses.A_REVERSE if idx == current else curses.A_NORMAL
+            # plain rendering (dimmed slightly if colors exist)
+            attr = curses.color_pair(3) if colors else curses.A_NORMAL
 
         stdscr.addnstr(y, x, line, w - 1, attr)
+
+    # overlay error message when no lrc
+    if not has_lrc:
+        msg = "no synced lyrics (lrc) found"
+        y = h // 2
+        x = max(0, (w // 2 - len(msg) // 2))
+
+        attr = curses.color_pair(4) | curses.A_BOLD if colors else curses.A_BOLD
+        stdscr.addnstr(y, x, msg, w - 1, attr)
 
     stdscr.refresh()
